@@ -53,6 +53,8 @@ class SCPI:
             raise PowerSupplyException("Connection to %s:%d refused" % (hostname, port))
         except socket.gaierror:
             raise PowerSupplyException("Hostname %s unknown" % (hostname))
+        except OSError as e:
+            raise PowerSupplyException("Couldn't connect to %s: %s" % (hostname, e))
         self._remote_init()
         self._probe()
 
@@ -74,6 +76,9 @@ class SCPI:
 
     def getCurrent(self):
         return float(self.cmd("MEAS:CURR?"))
+
+    def setCurrent(self, i):
+        self.cmd("SOUR:CURR %f" % i)
 
     def getVoltage(self):
         return float(self.cmd("MEAS:VOLT?"))
@@ -104,6 +109,7 @@ class Kepco(SCPI):
     DEFAULT_PORT = 5025
     # FIX ME determine this dynamically
     MAX_VOLTAGE = 80
+    MAX_CURRENT = 9.5
 
     def __init__(self, hostname, port=DEFAULT_PORT):
         super().__init__(hostname, port)
