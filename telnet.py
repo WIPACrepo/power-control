@@ -74,14 +74,20 @@ class AsyncTelnetWrapper(BaseTelnetWrapper):
 
     def read_eager(self):
         async def _read_eager():
-            if self.reader._buffer:
-                data = self.reader._buffer
-                self.reader._buffer = ''
-                return data.encode()
+            # Step 1: Check telnetlib3's internal text buffer
+            buf = ""
+            if getattr(self.reader, "_buffer", None):
+                buf = self.reader._buffer
+                self.reader._buffer = ""  # clear it so we don't read it twice
+
+            # Step 2: Try to pull anything else off the socket without blocking
             try:
-                return (await asyncio.wait_for(self.reader.read(1024), timeout=0)).encode()
+                more = await asyncio.wait_for(self.reader.read(1024), timeout=0.0001)
+                buf += more
             except asyncio.TimeoutError:
-                return b''
+                pass  # nothing more available right now
+
+            return buf.encode()  # stdlib telnetlib works with bytes
         return self._loop.run_until_complete(_read_eager())
 
     def write(self, buffer):
