@@ -6,7 +6,7 @@
 
 import time
 import socket
-import telnetlib
+from telnet import TelnetWrapper
 
 class PowerSupplyException(Exception):
     pass
@@ -25,7 +25,7 @@ def PowerSupply(hostname, port = None, supply_type = "generic"):
         if (supply_type != "generic"):
             print("WARNING: supply type %s unknown, using generic SCPI" % supply_type)
         supply = SCPI
-        
+
     if port is None:
         return supply(hostname)
     else:
@@ -41,14 +41,14 @@ class SCPI:
     def __init__(self, hostname, port=None):
         self.hostname = hostname
 
-        # Port is required, but keep it as keyword 
+        # Port is required, but keep it as keyword
         # to match subclasses
         if port is None:
-            raise PowerSupplyException("No port specified for generic supply type!")            
+            raise PowerSupplyException("No port specified for generic supply type!")
         self.port = port
 
         try:
-            self.telnet = telnetlib.Telnet(hostname, port)
+            self.telnet = TelnetWrapper(hostname, port)
         except ConnectionRefusedError:
             raise PowerSupplyException("Connection to %s:%d refused" % (hostname, port))
         except socket.gaierror:
@@ -69,11 +69,11 @@ class SCPI:
     def _remote_init(self):
         return
 
-    def _probe(self):        
+    def _probe(self):
         resp = self.cmd("*IDN?")
         # Keysight jams both fwvers and hwvers together in fourth field
         (self.manufacturer, self.model, self.serial, self.fwvers) = resp.split(",", 3)
-        
+
     def getCurrent(self):
         return float(self.cmd("MEAS:CURR?"))
 
@@ -126,7 +126,7 @@ class Keysight(SCPI):
     """
     DEFAULT_PORT = 5024
     PROMPT = "SCPI>"
-    # FIX ME determine dynamically
+    # FIX ME determine this dynamically
     MAX_VOLTAGE = 300
     MAX_CURRENT = 2.5
 

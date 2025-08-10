@@ -105,7 +105,7 @@ def main():
                 port = config['supply']['port']
         except KeyError:
             print("ERROR: config file %s is malformed or doesn't exist." % config_file)
-            sys.exit(-1)      
+            sys.exit(-1)
 
     # Command-line args override config file if specified
     if args.hostname is not None:
@@ -146,7 +146,7 @@ def main():
         resp = k.cmd(scpi_cmd)
         if resp:
             print("Response: "+resp)
-        
+
 
 if __name__ == "__main__":
     main()
