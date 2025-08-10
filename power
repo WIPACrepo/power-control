@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # Power supply primary interface script.
-# 
+#
 
 import time
 import sys
@@ -43,25 +43,33 @@ def off(k):
     time.sleep(1)
     status(k)
 
-def voltage(k, v):
-    v = float(v)
-    if (v < 0) or (v > k.MAX_VOLTAGE):
-        print("Voltage out of range.")
+def voltage(k, v=None):
+    if v is None:
+        print("Voltage: %.1f V" % k.getVoltage())
     else:
+        v = float(v)
+        if (v < 0) or (v > k.MAX_VOLTAGE):
+            print("Voltage out of range.")
+            return
+
         print("Setting voltage to %.1f V." % v)
         k.setVoltage(v)
-    time.sleep(1)
-    status(k)
+        time.sleep(1)
+        status(k)
 
-def current(k, i):
-    i = float(i)
-    if (i < 0) or (i > k.MAX_CURRENT):
-        print("Current out of range.")
+def current(k, i=None):
+    if i is None:
+        print("Current: %.3f A" % k.getCurrent())
     else:
+        i = float(i)
+        if (i < 0) or (i > k.MAX_CURRENT):
+            print("Current out of range.")
+            return
+
         print("Setting current limit to %.2f A." % i)
         k.setCurrent(i)
-    time.sleep(1)
-    status(k)
+        time.sleep(1)
+        status(k)
 
 command_dict = {"status": status,
                 "on" : on,
@@ -71,7 +79,7 @@ command_dict = {"status": status,
 }
 
 #----------------------------------------
-    
+
 def main():
     parser = argparse.ArgumentParser()
     command_help = "["+", ".join(command_dict.keys())+"] or raw SCPI command"
