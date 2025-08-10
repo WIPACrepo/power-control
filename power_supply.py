@@ -36,7 +36,7 @@ class SCPI:
     General power supply SCPI interface.
     Uses telnetlib to interface with supply.
     """
-    CMD_DELAY_SEC = 0.2
+    CMD_DELAY_SEC = 0.3
 
     def __init__(self, hostname, port=None):
         self.hostname = hostname
@@ -64,7 +64,7 @@ class SCPI:
     def cmd(self, scpi_cmd):
         self.telnet.write((scpi_cmd + "\n").encode())
         time.sleep(self.CMD_DELAY_SEC)
-        return self.telnet.read_eager().decode().strip()
+        return self.telnet.read_eager().decode('latin1').strip()
 
     def _remote_init(self):
         return
@@ -141,11 +141,15 @@ class Keysight(SCPI):
 
     def _remote_init(self):
         # Read header and initial prompt
-        self.telnet.read_until(self.PROMPT.encode())
+        resp = self.telnet.read_until(self.PROMPT.encode('latin1'), timeout=1)
 
     def cmd(self, scpi_cmd):
-        self.telnet.write((scpi_cmd + "\n").encode())
-        resp = self.telnet.read_until(self.PROMPT.encode()).decode()
-        # Response includes newline and prompt, remove them
-        resp = resp.split("\n")[0].strip()
-        return resp
+        self.telnet.write((scpi_cmd + "\r\n").encode('latin1'))
+        try:
+            resp = self.telnet.read_until(self.PROMPT.encode(), timeout=1).decode('latin1')
+            # Response includes newline and prompt and possibly command, ignore them
+            for line in resp.split("\n"):
+                if not (scpi_cmd in line) and not (self.PROMPT in line):
+                    return line.strip()
+        except TimeoutError:
+            print("Timeout during SCPI command: ",scpi_cmd)

@@ -6,11 +6,10 @@
 import asyncio
 
 try:
-    import telnetlib3
-    _has_telnetlib3 = True
-except ImportError:
     import telnetlib
-    _has_telnetlib3 = False
+    _has_telnetlib = True
+except ImportError:
+    _has_telnetlib = False
 
 class BaseTelnetWrapper:
     def open(self, host, port=23, **kwargs): raise NotImplementedError
@@ -47,8 +46,7 @@ class StdlibTelnetWrapper(BaseTelnetWrapper):
     def close(self):
         self._telnet.close()
 
-
-class AsyncTelnetWrapper(BaseTelnetWrapper):
+class AsyncRawTelnetWrapper(BaseTelnetWrapper):
     def __init__(self, host=None, port=23, **kwargs):
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
@@ -59,49 +57,68 @@ class AsyncTelnetWrapper(BaseTelnetWrapper):
 
     def open(self, host, port=23, **kwargs):
         async def _open():
-            return await telnetlib3.open_connection(host, port, **kwargs)
+            return await asyncio.open_connection(host, port, **kwargs)
         self.reader, self.writer = self._loop.run_until_complete(_open())
 
-    def read_until(self, expected, timeout=None):
+    def read_until(self, expected: bytes, timeout=None) -> bytes:
         async def _read_until():
-            return await self.reader.readuntil(expected, timeout)
+            buffer = b""
+            try:
+                while True:
+                    chunk = await asyncio.wait_for(self.reader.read(1024), timeout=timeout)
+                    if not chunk:
+                        # Connection closed
+                        break
+                    buffer += chunk
+                    if expected in buffer:
+                        break
+                return buffer
+            except asyncio.TimeoutError:
+                return buffer  # partial data on timeout
         return self._loop.run_until_complete(_read_until())
 
-    def read_some(self):
-        async def _read():
-            return await self.reader.read(1024)
-        return self._loop.run_until_complete(_read())
+    def read_some(self, n=1024) -> bytes:
+        async def _read_some():
+            try:
+                data = await asyncio.wait_for(self.reader.read(n), timeout=0.0001)
+                return data
+            except asyncio.TimeoutError:
+                return b""
+        return self._loop.run_until_complete(_read_some())
 
-    def read_eager(self):
+    def read_eager(self) -> bytes:
+        """
+        Read any bytes immediately available without blocking.
+        Returns empty bytes if no data is ready.
+        """
         async def _read_eager():
-            # Step 1: Check telnetlib3's internal text buffer
-            buf = ""
+            # First, grab any data already buffered internally
+            buf = b""
             if getattr(self.reader, "_buffer", None):
                 buf = self.reader._buffer
-                self.reader._buffer = ""  # clear it so we don't read it twice
-
-            # Step 2: Try to pull anything else off the socket without blocking
+                self.reader._buffer = b""
             try:
                 more = await asyncio.wait_for(self.reader.read(1024), timeout=0.0001)
                 buf += more
             except asyncio.TimeoutError:
-                pass  # nothing more available right now
-
-            return buf.encode()  # stdlib telnetlib works with bytes
+                pass
+            return buf
         return self._loop.run_until_complete(_read_eager())
 
-    def write(self, buffer):
-        self.writer.write(buffer.decode() if isinstance(buffer, bytes) else buffer)
+    def write(self, data: bytes):
+        async def _write():
+            self.writer.write(data)
+            await self.writer.drain()
+        self._loop.run_until_complete(_write())
 
     def close(self):
         self.writer.close()
         self._loop.run_until_complete(self.writer.wait_closed())
 
-
 def TelnetWrapper(host=None, port=23, force_stdlib=False, **kwargs):
     """
     Factory function to get the appropriate Telnet wrapper instance.
     """
-    if force_stdlib or not _has_telnetlib3:
+    if _has_telnetlib:
         return StdlibTelnetWrapper(host, port, **kwargs)
-    return AsyncTelnetWrapper(host, port, **kwargs)
+    return AsyncRawTelnetWrapper(host, port, **kwargs)
