@@ -126,8 +126,9 @@ class Keysight(SCPI):
     """
     DEFAULT_PORT = 5024
     PROMPT = "SCPI>"
-    # FIX ME
-    MAX_VOLTAGE = 600
+    # FIX ME determine this dynamically
+    MAX_VOLTAGE = 300
+    MAX_CURRENT = 2.5
 
     def __init__(self, hostname, port=DEFAULT_PORT):
         super().__init__(hostname, port)
