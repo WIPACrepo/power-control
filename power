@@ -18,10 +18,11 @@ DEFAULT_CONF = "supply.conf"
 def status(k):
     if k.isOn():
         print("Power supply output is ON.")
-        print("Voltage: %.1f V" % k.getVoltage())
-        print("Current: %.3f A" % k.getCurrent())
     else:
         print("Power supply output is OFF.")
+    print("Voltage: %.1f V (set: %.1f V)" % (k.getVoltage(), k.getVoltageSetting()))
+    print("Current: %.3f A (set: %.3f A)" % (k.getCurrent(), k.getCurrentSetting()))
+
 
 def on(k):
     if k.isOn():

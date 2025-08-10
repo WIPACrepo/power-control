@@ -77,11 +77,17 @@ class SCPI:
     def getCurrent(self):
         return float(self.cmd("MEAS:CURR?"))
 
+    def getCurrentSetting(self):
+        return float(self.cmd("SOUR:CURR?"))
+
     def setCurrent(self, i):
         self.cmd("SOUR:CURR %f" % i)
 
     def getVoltage(self):
         return float(self.cmd("MEAS:VOLT?"))
+
+    def getVoltageSetting(self):
+        return float(self.cmd("SOUR:VOLT?"))
 
     def setVoltage(self, v):
         self.cmd("SOUR:VOLT %f" % v)
